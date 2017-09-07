@@ -21,13 +21,7 @@ type HijackOptions struct {
 	Render      RenderFn
 }
 
-type route struct {
-	Method      string `json:"method"`
-	Path        string `json:"uri"`
-	Description string `json:"description,omitempty"`
-}
-
-func SelfDescribe(options ...HijackOptions) func(http.Handler) http.Handler {
+func SelfDescribeAPI(options ...HijackOptions) func(http.Handler) http.Handler {
 	opt := defaultHijackOptions
 	if len(options) > 0 {
 		opt = options[0]
@@ -41,14 +35,18 @@ func SelfDescribe(options ...HijackOptions) func(http.Handler) http.Handler {
 				return
 			}
 			// Hijack request
-			var routes []route
+			var routes APIRoutes
 			u := r.RequestURI
 			err := chi.Walk(ctx.Routes,
 				func(m string, r string, h http.Handler, mw ...func(http.Handler) http.Handler) error {
 					r = strings.Replace(r, "/*/", "/", -1)
 					lr, lu := len(r), len(u)
 					if lr >= lu && r[:lu] == u {
-						routes = append(routes, route{Method: m, Path: r})
+						diff := r[lu:]
+						if len(diff) <= 0 {
+							diff = "/"
+						}
+						routes = append(routes, APIRouteInfo{Method: m, Path: diff})
 					}
 					return nil
 				})
@@ -63,4 +61,24 @@ func SelfDescribe(options ...HijackOptions) func(http.Handler) http.Handler {
 			w.Write(raw)
 		})
 	}
+}
+
+type APIRouteInfo struct {
+	Method      string `json:"method"`
+	Path        string `json:"uri"`
+	Description string `json:"description,omitempty"`
+}
+
+type APIRoutes []APIRouteInfo
+
+func (r APIRoutes) Len() int {
+	return len(r)
+}
+
+func (r APIRoutes) Less(i int, j int) bool {
+	return strings.Compare(r[i].Path, r[j].Path) == -1
+}
+
+func (r APIRoutes) Swap(i int, j int) {
+	r[i], r[j] = r[j], r[i]
 }
