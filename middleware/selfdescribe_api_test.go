@@ -27,13 +27,19 @@ func runServer(port int) {
 	r.Put("/put", helloWorld)
 	r.Patch("/patch", helloWorld)
 	r.Delete("/delete", helloWorld)
-	// r.Route("/route", func(r chi.Router) {
-	// 	r.Get("/get", helloWorld)
-	// 	r.Post("/post", helloWorld)
-	// 	r.Put("/put", helloWorld)
-	// 	r.Patch("/patch", helloWorld)
-	// 	r.Delete("/delete", helloWorld)
-	// })
+	r.Route("/route", func(r chi.Router) {
+		r.Get("/get", helloWorld)
+		r.Post("/post", helloWorld)
+		r.Put("/put", helloWorld)
+		r.Patch("/patch", helloWorld)
+		r.Delete("/delete", helloWorld)
+		r.Route("/test", func(r chi.Router) {
+			r.Get("/hello/{id}", helloWorld)
+		})
+		r.Mount("/test2", chi.NewRouter().Group(func(r chi.Router) {
+			r.Get("/inner", helloWorld)
+		}))
+	})
 
 	log.Print(http.ListenAndServe(fmt.Sprintf(":%d", port), r))
 }
@@ -41,7 +47,7 @@ func runServer(port int) {
 func TestSelfDescribeAPI(t *testing.T) {
 	go runServer(8080)
 
-	url, err := url.Parse("http://localhost:8080/")
+	url, err := url.Parse("http://localhost:8080/route/test2")
 	assert.NoError(t, err)
 
 	v, err := http.DefaultClient.Do(&http.Request{Method: "OPTIONS", URL: url})
